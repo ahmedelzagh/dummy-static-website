@@ -2,21 +2,22 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'dummy_static_website', defaultValue: 'latest', description: 'a tag for the dummy website')
+        string(name: 'DOCKER_IMAGE_TAG', defaultValue: 'latest', description: 'Tag for the Docker image')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Clone the Git repository containing the Dockerfile and application code
-                checkout scm
+                checkout([$class: 'GitSCM',
+                    userRemoteConfigs: [[url: 'https://github.com/ahmedelzagh/dummy-static-website']],
+                    branches: [[name: '*/master']]
+                ])
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image using the specified tag
                     def dockerImageTag = params.DOCKER_IMAGE_TAG
                     sh "docker build -t my-image:${dockerImageTag} ."
                 }
@@ -26,27 +27,21 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    // Push the Docker image to Docker Hub (or another registry)
                     def dockerImageTag = params.DOCKER_IMAGE_TAG
-                    withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                            usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                        sh "docker push my-image:${dockerImageTag}"
+                        sh "docker tag my-image:${dockerImageTag} $DOCKER_USER/my-image:${dockerImageTag}"
+                        sh "docker push $DOCKER_USER/my-image:${dockerImageTag}"
+                    }
                 }
             }
         }
     }
-}
-}
 
     post {
         always {
-            // Clean up workspace after the build
             cleanWs()
         }
     }
+}
