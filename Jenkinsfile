@@ -34,19 +34,14 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
-                ])
-                {
-                        writeFile file: '.env', text: """
-                DOCKER_USER=${DOCKER_USER}
-                DOCKER_PASS=${DOCKER_PASS}
-                """
-                }
+                ]) {
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                         sh "docker push my-image:${dockerImageTag}"
                 }
             }
         }
     }
+}
 }
 
     post {
